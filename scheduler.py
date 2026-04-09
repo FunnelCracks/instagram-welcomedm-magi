@@ -13,9 +13,10 @@ import argparse
 import schedule
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=False)
 
 INTERVAL = int(os.getenv("CHECK_INTERVAL_MINUTES", "60"))
+print(f"[Scheduler] CHECK_INTERVAL_MINUTES={os.getenv('CHECK_INTERVAL_MINUTES', 'no encontrado')}")
 
 
 def job(mode: str):

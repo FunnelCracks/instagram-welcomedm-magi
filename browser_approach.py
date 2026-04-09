@@ -11,19 +11,24 @@ from instagrapi import Client
 from instagrapi.exceptions import LoginRequired, ClientError
 from db import init_db, find_new_followers, save_known_followers, is_already_messaged, mark_as_messaged
 
-load_dotenv()
+load_dotenv(override=False)
 
-IG_USERNAME   = os.getenv("IG_USERNAME", "")
-IG_PASSWORD   = os.getenv("IG_PASSWORD", "")
-WELCOME_MSG   = os.getenv("WELCOME_MESSAGE", "Hola {username}! Gracias por seguirme.")
-MAX_DMS_HOUR  = int(os.getenv("MAX_DMS_PER_HOUR", "15"))
 SESSION_FILE  = "session.json"
-
 DM_DELAY_MIN  = 60    # segundos mínimos entre DMs
 DM_DELAY_MAX  = 180   # segundos máximos entre DMs
 
 
-def login() -> Client:
+def get_config():
+    """Lee las variables de entorno en el momento de ejecutar, no al importar."""
+    username = os.getenv("IG_USERNAME", "").strip()
+    password = os.getenv("IG_PASSWORD", "").strip()
+    message  = os.getenv("WELCOME_MESSAGE", "Hola! Gracias por seguirme.").replace('\\n', '\n')
+    max_dms  = int(os.getenv("MAX_DMS_PER_HOUR", "15"))
+    print(f"[Config] Usuario: '{username}' | Password cargada: {'Sí' if password else 'No'}")
+    return username, password, message, max_dms
+
+
+def login(username: str, password: str) -> Client:
     cl = Client()
     cl.delay_range = [2, 5]  # delays automáticos entre requests
 
@@ -31,21 +36,21 @@ def login() -> Client:
     if os.path.exists(SESSION_FILE):
         try:
             cl.load_settings(SESSION_FILE)
-            cl.login(IG_USERNAME, IG_PASSWORD)
+            cl.login(username, password)
             print("[Login] Sesión restaurada correctamente.")
             return cl
         except LoginRequired:
             print("[Login] Sesión expirada, iniciando sesión nueva...")
 
     # Login normal
-    cl.login(IG_USERNAME, IG_PASSWORD)
+    cl.login(username, password)
     cl.dump_settings(SESSION_FILE)
     print("[Login] Sesión iniciada y guardada.")
     return cl
 
 
-def get_followers(cl: Client) -> list[dict]:
-    user_id = cl.user_id_from_username(IG_USERNAME)
+def get_followers(cl: Client, username: str) -> list[dict]:
+    user_id = cl.user_id_from_username(username)
     followers_raw = cl.user_followers(user_id, amount=0)  # 0 = todos
     followers = [
         {"id": str(uid), "username": user.username}
@@ -69,10 +74,12 @@ def send_dm(cl: Client, user_id: str, username: str) -> bool:
 def run_once():
     print("\n[Bot] Iniciando ciclo...")
 
-    cl = login()
+    ig_username, ig_password, welcome_msg, max_dms = get_config()
+
+    cl = login(ig_username, ig_password)
 
     print("[Bot] Obteniendo seguidores...")
-    current_followers = get_followers(cl)
+    current_followers = get_followers(cl, ig_username)
 
     new_followers = find_new_followers(current_followers)
     print(f"[Bot] Nuevos seguidores a contactar: {len(new_followers)}")
@@ -80,8 +87,8 @@ def run_once():
     dms_sent = 0
 
     for follower in new_followers:
-        if dms_sent >= MAX_DMS_HOUR:
-            print(f"[Bot] Límite de {MAX_DMS_HOUR} mensajes alcanzado por este ciclo.")
+        if dms_sent >= max_dms:
+            print(f"[Bot] Límite de {max_dms} mensajes alcanzado por este ciclo.")
             break
 
         uid   = follower["id"]

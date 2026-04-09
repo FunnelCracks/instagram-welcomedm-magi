@@ -6,12 +6,9 @@ Usa instagrapi (no necesita navegador, funciona en la nube)
 import os
 import time
 import random
-from dotenv import load_dotenv
 from instagrapi import Client
 from instagrapi.exceptions import LoginRequired, ClientError
 from db import init_db, find_new_followers, save_known_followers, is_already_messaged, mark_as_messaged
-
-load_dotenv(override=False)
 
 SESSION_FILE  = "session.json"
 DM_DELAY_MIN  = 60    # segundos mínimos entre DMs

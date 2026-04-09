@@ -41,6 +41,7 @@ def login(username: str, password: str) -> Client:
 
     # Login normal
     cl.login(username, password)
+    time.sleep(5)  # pausa para que Instagram procese el login
     cl.dump_settings(SESSION_FILE)
     print("[Login] Sesión iniciada y guardada.")
     return cl
@@ -48,10 +49,14 @@ def login(username: str, password: str) -> Client:
 
 def get_followers(cl: Client, username: str) -> list[dict]:
     user_id = cl.user_id_from_username(username)
+    if not user_id:
+        print(f"[Seguidores] No se pudo obtener el user_id para @{username}. Reintentando en el próximo ciclo.")
+        return []
     followers_raw = cl.user_followers(user_id, amount=0)  # 0 = todos
     followers = [
         {"id": str(uid), "username": user.username}
         for uid, user in followers_raw.items()
+        if uid is not None
     ]
     print(f"[Seguidores] Total: {len(followers)}")
     return followers
